@@ -3,6 +3,7 @@ from uuid import UUID
 
 from app.entities.file import File
 from app.entities.folder import Folder
+from app.schemas.entry import EntryDto
 
 
 @runtime_checkable
@@ -16,3 +17,8 @@ class FileSystemRepositoryProtocol(Protocol):
     async def delete_file(self, file_id: UUID) -> None: ...
 
     async def delete_folder(self, folder_id: UUID) -> None: ...
+
+    async def get_folder_path(self, folder_id: UUID) -> str: ...
+
+    async def get_children(self, folder_id: UUID) -> list[EntryDto]: ...
+   

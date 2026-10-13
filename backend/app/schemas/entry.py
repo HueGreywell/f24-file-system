@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.entities.enums import EntryType
 
@@ -25,3 +25,13 @@ class EntryDto(BaseModel):
     id: UUID
     name: str
     type: str
+
+
+class FolderContentsDto(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: UUID
+    name: str
+    parent_id: UUID | None = Field(serialization_alias="parentId")
+    path: str
+    children: list[EntryDto]

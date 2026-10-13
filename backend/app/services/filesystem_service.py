@@ -4,7 +4,7 @@ from app.entities.enums import EntryType
 from app.entities.file import File
 from app.entities.folder import Folder
 from app.repositories.protocols import FileSystemRepositoryProtocol
-from app.schemas.entry import CreateEntryRequest, EntryDto
+from app.schemas.entry import CreateEntryRequest, EntryDto, FolderContentsDto
 from app.services import name_validator
 from app.services.exceptions import *
 
@@ -39,3 +39,18 @@ class FileSystemService:
             raise CannotDeleteRootException("The root folder cannot be deleted.")
 
         await self._repository.delete_folder(folder_id)
+
+    async def get_folder(self, folder_id: UUID) -> FolderContentsDto:
+        folder = await self._repository.get_folder(folder_id)
+        if folder is None:
+            raise EntryNotFoundException("Folder not found.")
+
+        path = await self._repository.get_folder_path(folder_id)
+        children = await self._repository.get_children(folder_id)
+        return FolderContentsDto(
+            id=folder.id,
+            name=folder.name,
+            parent_id=folder.parent_id,
+            path=path,
+            children=children,
+        )
