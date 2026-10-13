@@ -6,7 +6,7 @@ from app.entities.file import File
 from app.entities.folder import Folder
 from app.repositories.protocols import FileSystemRepositoryProtocol
 from app.schemas.entry import EntryDto, SearchResultDto
-from app.services.exceptions import EntryNotFoundException
+from app.services.exceptions import DuplicateNameException, EntryNotFoundException
 
 
 class FileSystemRepository(FileSystemRepositoryProtocol):
@@ -14,20 +14,30 @@ class FileSystemRepository(FileSystemRepositoryProtocol):
         self._connection = connection
 
     async def add_folder(self, folder: Folder) -> None:
-        await self._connection.execute(
-            "INSERT INTO folders (id, parent_id, name) VALUES ($1, $2, $3)",
-            folder.id,
-            folder.parent_id,
-            folder.name,
-        )
+        try:
+            await self._connection.execute(
+                "INSERT INTO folders (id, parent_id, name) VALUES ($1, $2, $3)",
+                folder.id,
+                folder.parent_id,
+                folder.name,
+            )
+        except asyncpg.UniqueViolationError as error:
+            raise DuplicateNameException(
+                "An entry with this name already exists in the folder."
+            ) from error
 
     async def add_file(self, file: File) -> None:
-        await self._connection.execute(
-            "INSERT INTO files (id, parent_id, name) VALUES ($1, $2, $3)",
-            file.id,
-            file.parent_id,
-            file.name,
-        )
+        try:
+            await self._connection.execute(
+                "INSERT INTO files (id, parent_id, name) VALUES ($1, $2, $3)",
+                file.id,
+                file.parent_id,
+                file.name,
+            )
+        except asyncpg.UniqueViolationError as error:
+            raise DuplicateNameException(
+                "An entry with this name already exists in the folder."
+            ) from error
 
     async def get_folder(self, folder_id: UUID) -> Folder | None:
         row = await self._connection.fetchrow(

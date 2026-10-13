@@ -11,7 +11,7 @@ from app.schemas.entry import (
     SearchResultDto,
 )
 from app.services import name_validator
-from app.services.exceptions import *
+from app.services.exceptions import CannotDeleteRootException, EntryNotFoundException
 
 SEARCH_RESULT_LIMIT = 10
 
