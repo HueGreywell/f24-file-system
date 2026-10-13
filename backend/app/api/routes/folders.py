@@ -29,3 +29,10 @@ async def get_folder(
     id: str, service: FileSystemService = Depends(get_service)
 ) -> FolderContentsDto:
     return await service.get_folder(parse_path_uuid(id))
+
+
+@router.get("", response_model=FolderContentsDto)
+async def get_root_folder(
+    service: FileSystemService = Depends(get_service),
+) -> FolderContentsDto:
+    return await service.get_root()

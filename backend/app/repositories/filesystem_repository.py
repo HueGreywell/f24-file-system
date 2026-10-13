@@ -37,6 +37,14 @@ class FileSystemRepository(FileSystemRepositoryProtocol):
             return None
         return Folder(id=row["id"], parent_id=row["parent_id"], name=row["name"])
 
+    async def get_root_folder(self) -> Folder | None:
+        row = await self._connection.fetchrow(
+            "SELECT id, parent_id, name FROM folders WHERE parent_id IS NULL"
+        )
+        if row is None:
+            return None
+        return Folder(id=row["id"], parent_id=row["parent_id"], name=row["name"])
+
     async def delete_folder(self, folder_id: UUID) -> None:
         await self._connection.execute("DELETE FROM folders WHERE id = $1", folder_id)
 

@@ -51,9 +51,17 @@ class FileSystemService:
         folder = await self._repository.get_folder(folder_id)
         if folder is None:
             raise EntryNotFoundException("Folder not found.")
+        return await self._build_folder_contents(folder)
 
-        path = await self._repository.get_folder_path(folder_id)
-        children = await self._repository.get_children(folder_id)
+    async def get_root(self) -> FolderContentsDto:
+        folder = await self._repository.get_root_folder()
+        if folder is None:
+            raise EntryNotFoundException("Root folder not found.")
+        return await self._build_folder_contents(folder)
+
+    async def _build_folder_contents(self, folder: Folder) -> FolderContentsDto:
+        path = await self._repository.get_folder_path(folder.id)
+        children = await self._repository.get_children(folder.id)
         return FolderContentsDto(
             id=folder.id,
             name=folder.name,
