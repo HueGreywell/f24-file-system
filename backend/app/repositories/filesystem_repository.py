@@ -5,6 +5,7 @@ import asyncpg
 from app.entities.file import File
 from app.entities.folder import Folder
 from app.repositories.protocols import FileSystemRepositoryProtocol
+from app.services.exceptions import EntryNotFoundException
 
 
 class FileSystemRepository(FileSystemRepositoryProtocol):
@@ -34,3 +35,12 @@ class FileSystemRepository(FileSystemRepositoryProtocol):
         if row is None:
             return None
         return Folder(id=row["id"], parent_id=row["parent_id"], name=row["name"])
+
+    async def delete_folder(self, folder_id: UUID) -> None:
+        await self._connection.execute("DELETE FROM folders WHERE id = $1", folder_id)
+
+    async def delete_file(self, file_id: UUID) -> None:
+        result = await self._connection.execute("DELETE FROM files WHERE id = $1", file_id)
+        if result == "DELETE 0":
+            raise EntryNotFoundException("File not found.")
+

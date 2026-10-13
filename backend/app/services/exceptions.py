@@ -13,3 +13,7 @@ class InvalidNameException(DomainException):
 class EntryNotFoundException(DomainException):
     def __init__(self, message: str) -> None:
         super().__init__("NOT_FOUND", message)
+
+class CannotDeleteRootException(DomainException):
+    def __init__(self, message: str) -> None:
+        super().__init__("CANNOT_DELETE_ROOT", message)
