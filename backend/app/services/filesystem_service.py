@@ -4,9 +4,16 @@ from app.entities.enums import EntryType
 from app.entities.file import File
 from app.entities.folder import Folder
 from app.repositories.protocols import FileSystemRepositoryProtocol
-from app.schemas.entry import CreateEntryRequest, EntryDto, FolderContentsDto
+from app.schemas.entry import (
+    CreateEntryRequest,
+    EntryDto,
+    FolderContentsDto,
+    SearchResultDto,
+)
 from app.services import name_validator
 from app.services.exceptions import *
+
+SEARCH_RESULT_LIMIT = 10
 
 
 class FileSystemService:
@@ -22,11 +29,11 @@ class FileSystemService:
         if request.type == EntryType.FOLDER:
             folder = Folder(id=uuid4(), parent_id=parent_id, name=name)
             await self._repository.add_folder(folder)
-            return EntryDto(id=folder.id, name=folder.name, type="folder")
+            return EntryDto(id=folder.id, name=folder.name, type=EntryType.FOLDER.value)
 
         file = File(id=uuid4(), parent_id=parent_id, name=name)
         await self._repository.add_file(file)
-        return EntryDto(id=file.id, name=file.name, type="file")
+        return EntryDto(id=file.id, name=file.name, type=EntryType.FILE.value)
 
     async def delete_file(self, file_id: UUID) -> None:
         await self._repository.delete_file(file_id)
@@ -54,3 +61,17 @@ class FileSystemService:
             path=path,
             children=children,
         )
+
+    async def search(self, query: str, folder_id: UUID | None) -> list[SearchResultDto]:
+        query = query.strip()
+        if not query:
+            return []
+
+        if folder_id is not None:
+            if await self._repository.get_folder(folder_id) is None:
+                raise EntryNotFoundException("Folder not found.")
+            return await self._repository.search_exact_in_folder(
+                query, folder_id, SEARCH_RESULT_LIMIT
+            )
+
+        return await self._repository.search_all_files(query, SEARCH_RESULT_LIMIT)

@@ -35,3 +35,12 @@ class FolderContentsDto(BaseModel):
     parent_id: UUID | None = Field(serialization_alias="parentId")
     path: str
     children: list[EntryDto]
+
+
+class SearchResultDto(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: UUID
+    name: str
+    path: str
+    parent_id: UUID = Field(serialization_alias="parentId")

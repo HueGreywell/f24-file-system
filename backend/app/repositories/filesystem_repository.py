@@ -5,7 +5,7 @@ import asyncpg
 from app.entities.file import File
 from app.entities.folder import Folder
 from app.repositories.protocols import FileSystemRepositoryProtocol
-from app.schemas.entry import EntryDto
+from app.schemas.entry import EntryDto, SearchResultDto
 from app.services.exceptions import EntryNotFoundException
 
 
@@ -57,6 +57,40 @@ class FileSystemRepository(FileSystemRepositoryProtocol):
             EntryDto(id=row["id"], name=row["name"], type=row["type"]) for row in rows
         ]
 
+    async def search_exact_in_folder(
+        self, query: str, folder_id: UUID, limit: int
+    ) -> list[SearchResultDto]:
+        rows = await self._connection.fetch(
+            _SEARCH_EXACT_CURRENT_SQL, folder_id, query, limit
+        )
+
+        return [
+            SearchResultDto(
+                id=row["id"],
+                name=row["name"],
+                path=row["path"],
+                parent_id=row["parent_id"],
+            )
+            for row in rows
+        ]
+
+    async def search_all_files(self, query: str, limit: int) -> list[SearchResultDto]:
+        escaped = (
+            query.lower().replace("\\", "\\\\").replace("%", "\\%").replace("*", "\\*")
+        )
+
+        rows = await self._connection.fetch(_SEARCH_ALL_FILES_SQL, f"{escaped}%", limit)
+
+        return [
+            SearchResultDto(
+                id=row["id"],
+                name=row["name"],
+                path=row["path"],
+                parent_id=row["parent_id"],
+            )
+            for row in rows
+        ]
+
 
 _GET_FOLDER_PATH_SQL = """
     WITH RECURSIVE ancestors AS (
@@ -73,10 +107,52 @@ _GET_FOLDER_PATH_SQL = """
 """
 
 _GET_CHILDREN_SQL = """
-    SELECT id, name, 'folder' AS type, 0 AS sort_order, lower(name) COLLATE "C" AS sort_name
+    SELECT id, name, 'Folder' AS type, 0 AS sort_order, lower(name) COLLATE "C" AS sort_name
     FROM folders WHERE parent_id = $1
     UNION ALL
-    SELECT id, name, 'file' AS type, 1 AS sort_order, lower(name) COLLATE "C" AS sort_name
+    SELECT id, name, 'File' AS type, 1 AS sort_order, lower(name) COLLATE "C" AS sort_name
     FROM files WHERE parent_id = $1
     ORDER BY sort_order, sort_name, id
+"""
+
+_SEARCH_COMMON_SQL = """
+    ancestors AS (
+        SELECT match.id AS file_id, folder.id, folder.parent_id, folder.name, 0 AS depth
+        FROM matches match JOIN folders folder ON folder.id = match.parent_id
+        UNION ALL
+        SELECT child.file_id, parent.id, parent.parent_id, parent.name, child.depth + 1
+        FROM ancestors child JOIN folders parent ON parent.id = child.parent_id
+    ),
+    result_paths AS (
+        SELECT file_id, string_agg(name, '/' ORDER BY depth DESC) AS path
+        FROM ancestors
+        GROUP BY file_id
+    )
+    SELECT match.id AS id, match.name AS name,
+           path.path || '/' || match.name AS path,
+           match.parent_id AS parent_id
+    FROM matches match JOIN result_paths path ON path.file_id = match.id
+    ORDER BY LOWER(match.name) COLLATE "C", match.name COLLATE "C", match.id
+"""
+
+_SEARCH_ALL_FILES_SQL = f"""
+    WITH RECURSIVE matches AS MATERIALIZED (
+        SELECT id, name, parent_id
+        FROM files
+        WHERE LOWER(name) COLLATE "C" LIKE $1 ESCAPE '\\'
+        ORDER BY LOWER(name) COLLATE "C", name COLLATE "C", id
+        LIMIT $2
+    ),
+    {_SEARCH_COMMON_SQL}
+"""
+
+_SEARCH_EXACT_CURRENT_SQL = f"""
+    WITH RECURSIVE matches AS MATERIALIZED (
+        SELECT id, name, parent_id
+        FROM files
+        WHERE parent_id = $1 AND LOWER(name) = LOWER($2)
+        ORDER BY LOWER(name) COLLATE "C", name COLLATE "C", id
+        LIMIT $3
+    ),
+    {_SEARCH_COMMON_SQL}
 """
