@@ -1,0 +1,27 @@
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, field_validator
+
+from app.entities.enums import EntryType
+
+
+class CreateEntryRequest(BaseModel):
+    name: str
+    type: EntryType
+
+    @field_validator("type", mode="before")
+    @classmethod
+    def validate_type(cls, value: object) -> object:
+        if isinstance(value, str):
+            for member in EntryType:
+                if member.value.lower() == value.lower():
+                    return member
+        return value
+
+
+class EntryDto(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: UUID
+    name: str
+    type: str

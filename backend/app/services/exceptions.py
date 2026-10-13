@@ -4,3 +4,12 @@ class DomainException(Exception):
         self.code = code
         self.message = message
 
+
+class InvalidNameException(DomainException):
+    def __init__(self, message: str) -> None:
+        super().__init__("INVALID_NAME", message)
+
+
+class EntryNotFoundException(DomainException):
+    def __init__(self, message: str) -> None:
+        super().__init__("NOT_FOUND", message)
