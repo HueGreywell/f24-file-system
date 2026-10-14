@@ -10,7 +10,7 @@ interface FileSearchState {
   searched: boolean
 }
 
-export function useFileSearch(query: string): FileSearchState {
+export function useFileSearch(query: string, folderId?: string): FileSearchState {
   const [results, setResults] = useState<SearchResult[]>([])
   const debouncedQuery = useDebouncedValue(query.trim(), 250)
   const toast = useToast()
@@ -18,12 +18,12 @@ export function useFileSearch(query: string): FileSearchState {
   useEffect(() => {
     if (!debouncedQuery) return
 
-    searchFiles(debouncedQuery)
+    searchFiles(debouncedQuery, folderId)
       .then(setResults)
       .catch((err: unknown) => {
         toast.error(getErrorMessage(err))
       })
-  }, [debouncedQuery, toast])
+  }, [debouncedQuery, folderId, toast])
 
   return debouncedQuery ? { results, searched: true } : { results: [], searched: false }
 }

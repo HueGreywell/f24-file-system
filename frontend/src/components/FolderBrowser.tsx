@@ -27,7 +27,7 @@ export function FolderBrowser() {
 
   return (
     <>
-      <SearchBox onSelect={handleSearchSelect} />
+      <SearchBox currentFolderId={folder?.id} onSelect={handleSearchSelect} />
 
       <p className="path">{folder?.path ?? '…'}</p>
 

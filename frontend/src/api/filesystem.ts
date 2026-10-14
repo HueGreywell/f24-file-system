@@ -20,6 +20,8 @@ export function deleteFile(id: string): Promise<void> {
   return request<void>(`/files/${id}`, { method: 'DELETE' })
 }
 
-export function searchFiles(query: string): Promise<SearchResult[]> {
-  return request<SearchResult[]>(`/files/search?${new URLSearchParams({ query })}`)
+export function searchFiles(query: string, folderId?: string): Promise<SearchResult[]> {
+  const params = new URLSearchParams({ query })
+  if (folderId) params.set('folderId', folderId)
+  return request<SearchResult[]>(`/files/search?${params}`)
 }
