@@ -3,13 +3,14 @@ from uuid import uuid4
 import pytest
 
 from app.entities.enums import EntryType
-from app.entities.folder import Folder
-from app.schemas.entry import CreateEntryRequest
-from app.services.exceptions import (
+from app.entities.exceptions import (
     CannotDeleteRootException,
     DuplicateNameException,
     EntryNotFoundException,
 )
+from app.entities.file import File
+from app.entities.folder import Folder
+from app.schemas.entry import CreateEntryRequest
 from app.services.filesystem_service import FileSystemService
 from tests.fakes import FakeRepository
 
@@ -34,7 +35,7 @@ def service(repository):
 async def test_create_folder(service, root):
     entry = await service.create(root.id, CreateEntryRequest(name="Docs", type=EntryType.FOLDER))
 
-    assert entry.type == "Folder"
+    assert isinstance(entry, Folder)
     assert entry.name == "Docs"
 
 
@@ -43,7 +44,7 @@ async def test_create_file(service, root):
         root.id, CreateEntryRequest(name="report.txt", type=EntryType.FILE)
     )
 
-    assert entry.type == "File"
+    assert isinstance(entry, File)
     assert entry.name == "report.txt"
 
 
@@ -110,7 +111,7 @@ async def test_get_folder_returns_children_and_path(service, root):
 async def test_get_root(service, root):
     contents = await service.get_root()
 
-    assert contents.id == root.id
+    assert contents.folder.id == root.id
 
 
 async def test_search_blank_query_returns_empty(service, root):
@@ -123,7 +124,7 @@ async def test_search_without_folder_id_matches_prefix_across_all_files(service,
 
     results = await service.search("re", None)
 
-    assert {r.name for r in results} == {"report.txt", "resume.pdf"}
+    assert {r.file.name for r in results} == {"report.txt", "resume.pdf"}
 
 
 async def test_search_with_folder_id_matches_exact_name_only(service, root):
@@ -131,7 +132,7 @@ async def test_search_with_folder_id_matches_exact_name_only(service, root):
 
     assert await service.search("report", root.id) == []
     results = await service.search("report.txt", root.id)
-    assert [r.name for r in results] == ["report.txt"]
+    assert [r.file.name for r in results] == ["report.txt"]
 
 
 async def test_search_with_missing_folder_id_raises_not_found(service):

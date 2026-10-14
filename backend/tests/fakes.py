@@ -1,9 +1,9 @@
 from uuid import UUID
 
+from app.entities.exceptions import DuplicateNameException, EntryNotFoundException
 from app.entities.file import File
 from app.entities.folder import Folder
-from app.schemas.entry import EntryDto, SearchResultDto
-from app.services.exceptions import DuplicateNameException, EntryNotFoundException
+from app.entities.search_match import SearchMatch
 
 
 class FakeRepository:
@@ -73,7 +73,7 @@ class FakeRepository:
             current = folder.parent_id
         return "/".join(reversed(parts))
 
-    async def get_children(self, folder_id: UUID) -> list[EntryDto]:
+    async def get_children(self, folder_id: UUID) -> list[Folder | File]:
         folders = sorted(
             (f for f in self.folders.values() if f.parent_id == folder_id),
             key=lambda f: f.name.lower(),
@@ -82,32 +82,25 @@ class FakeRepository:
             (f for f in self.files.values() if f.parent_id == folder_id),
             key=lambda f: f.name.lower(),
         )
-        return [EntryDto(id=f.id, name=f.name, type="Folder") for f in folders] + [
-            EntryDto(id=f.id, name=f.name, type="File") for f in files
-        ]
+        return [*folders, *files]
 
-    async def _to_search_result(self, file: File) -> SearchResultDto:
+    async def _to_search_match(self, file: File) -> SearchMatch:
         path = await self.get_folder_path(file.parent_id)
-        return SearchResultDto(
-            id=file.id,
-            name=file.name,
-            path=f"{path}/{file.name}",
-            parent_id=file.parent_id,
-        )
+        return SearchMatch(file=file, path=f"{path}/{file.name}")
 
     async def search_exact_in_folder(
         self, query: str, folder_id: UUID, limit: int
-    ) -> list[SearchResultDto]:
+    ) -> list[SearchMatch]:
         matches = [
             f
             for f in self.files.values()
             if f.parent_id == folder_id and f.name.lower() == query.lower()
         ]
         matches.sort(key=lambda f: f.name.lower())
-        return [await self._to_search_result(f) for f in matches[:limit]]
+        return [await self._to_search_match(f) for f in matches[:limit]]
 
-    async def search_all_files(self, query: str, limit: int) -> list[SearchResultDto]:
+    async def search_all_files(self, query: str, limit: int) -> list[SearchMatch]:
         lowered = query.lower()
         matches = [f for f in self.files.values() if f.name.lower().startswith(lowered)]
         matches.sort(key=lambda f: f.name.lower())
-        return [await self._to_search_result(f) for f in matches[:limit]]
+        return [await self._to_search_match(f) for f in matches[:limit]]

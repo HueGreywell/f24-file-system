@@ -1,17 +1,14 @@
 from uuid import UUID, uuid4
 
 from app.entities.enums import EntryType
+from app.entities.exceptions import CannotDeleteRootException, EntryNotFoundException
 from app.entities.file import File
 from app.entities.folder import Folder
+from app.entities.folder_contents import FolderContents
+from app.entities.search_match import SearchMatch
 from app.repositories.protocols import FileSystemRepositoryProtocol
-from app.schemas.entry import (
-    CreateEntryRequest,
-    EntryDto,
-    FolderContentsDto,
-    SearchResultDto,
-)
+from app.schemas.entry import CreateEntryRequest
 from app.services import name_validator
-from app.services.exceptions import CannotDeleteRootException, EntryNotFoundException
 
 SEARCH_RESULT_LIMIT = 10
 
@@ -20,7 +17,7 @@ class FileSystemService:
     def __init__(self, repository: FileSystemRepositoryProtocol) -> None:
         self._repository = repository
 
-    async def create(self, parent_id: UUID, request: CreateEntryRequest) -> EntryDto:
+    async def create(self, parent_id: UUID, request: CreateEntryRequest) -> Folder | File:
         name = name_validator.normalize(request.name)
 
         if await self._repository.get_folder(parent_id) is None:
@@ -29,11 +26,11 @@ class FileSystemService:
         if request.type == EntryType.FOLDER:
             folder = Folder(id=uuid4(), parent_id=parent_id, name=name)
             await self._repository.add_folder(folder)
-            return EntryDto(id=folder.id, name=folder.name, type=EntryType.FOLDER.value)
+            return folder
 
         file = File(id=uuid4(), parent_id=parent_id, name=name)
         await self._repository.add_file(file)
-        return EntryDto(id=file.id, name=file.name, type=EntryType.FILE.value)
+        return file
 
     async def delete_file(self, file_id: UUID) -> None:
         await self._repository.delete_file(file_id)
@@ -47,30 +44,24 @@ class FileSystemService:
 
         await self._repository.delete_folder(folder_id)
 
-    async def get_folder(self, folder_id: UUID) -> FolderContentsDto:
+    async def get_folder(self, folder_id: UUID) -> FolderContents:
         folder = await self._repository.get_folder(folder_id)
         if folder is None:
             raise EntryNotFoundException("Folder not found.")
         return await self._build_folder_contents(folder)
 
-    async def get_root(self) -> FolderContentsDto:
+    async def get_root(self) -> FolderContents:
         folder = await self._repository.get_root_folder()
         if folder is None:
             raise EntryNotFoundException("Root folder not found.")
         return await self._build_folder_contents(folder)
 
-    async def _build_folder_contents(self, folder: Folder) -> FolderContentsDto:
+    async def _build_folder_contents(self, folder: Folder) -> FolderContents:
         path = await self._repository.get_folder_path(folder.id)
         children = await self._repository.get_children(folder.id)
-        return FolderContentsDto(
-            id=folder.id,
-            name=folder.name,
-            parent_id=folder.parent_id,
-            path=path,
-            children=children,
-        )
+        return FolderContents(folder=folder, path=path, children=children)
 
-    async def search(self, query: str, folder_id: UUID | None) -> list[SearchResultDto]:
+    async def search(self, query: str, folder_id: UUID | None) -> list[SearchMatch]:
         query = query.strip()
         if not query:
             return []

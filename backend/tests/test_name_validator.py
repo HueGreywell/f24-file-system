@@ -1,7 +1,7 @@
 import pytest
 
+from app.entities.exceptions import InvalidNameException
 from app.services import name_validator
-from app.services.exceptions import InvalidNameException
 
 
 def test_normalize_trims_whitespace():

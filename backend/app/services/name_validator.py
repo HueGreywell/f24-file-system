@@ -1,4 +1,4 @@
-from app.services.exceptions import InvalidNameException
+from app.entities.exceptions import InvalidNameException
 
 MAX_LENGTH = 255
 

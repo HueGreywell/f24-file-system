@@ -2,11 +2,11 @@ from uuid import UUID
 
 import asyncpg
 
+from app.entities.exceptions import DuplicateNameException, EntryNotFoundException
 from app.entities.file import File
 from app.entities.folder import Folder
+from app.entities.search_match import SearchMatch
 from app.repositories.protocols import FileSystemRepositoryProtocol
-from app.schemas.entry import EntryDto, SearchResultDto
-from app.services.exceptions import DuplicateNameException, EntryNotFoundException
 
 
 class FileSystemRepository(FileSystemRepositoryProtocol):
@@ -14,30 +14,30 @@ class FileSystemRepository(FileSystemRepositoryProtocol):
         self._connection = connection
 
     async def add_folder(self, folder: Folder) -> None:
-        try:
-            await self._connection.execute(
-                "INSERT INTO folders (id, parent_id, name) VALUES ($1, $2, $3)",
-                folder.id,
-                folder.parent_id,
-                folder.name,
-            )
-        except asyncpg.UniqueViolationError as error:
-            raise DuplicateNameException(
-                "An entry with this name already exists in the folder."
-            ) from error
+        await self._insert_entry(
+            "INSERT INTO folders (id, parent_id, name) VALUES ($1, $2, $3)",
+            folder.id,
+            folder.parent_id,
+            folder.name,
+        )
 
     async def add_file(self, file: File) -> None:
+        await self._insert_entry(
+            "INSERT INTO files (id, parent_id, name) VALUES ($1, $2, $3)",
+            file.id,
+            file.parent_id,
+            file.name,
+        )
+
+    async def _insert_entry(self, query: str, *args: object) -> None:
         try:
-            await self._connection.execute(
-                "INSERT INTO files (id, parent_id, name) VALUES ($1, $2, $3)",
-                file.id,
-                file.parent_id,
-                file.name,
-            )
+            await self._connection.execute(query, *args)
         except asyncpg.UniqueViolationError as error:
             raise DuplicateNameException(
                 "An entry with this name already exists in the folder."
             ) from error
+        except asyncpg.ForeignKeyViolationError as error:
+            raise EntryNotFoundException("Parent folder not found.") from error
 
     async def get_folder(self, folder_id: UUID) -> Folder | None:
         row = await self._connection.fetchrow(
@@ -69,45 +69,39 @@ class FileSystemRepository(FileSystemRepositoryProtocol):
     async def get_folder_path(self, folder_id: UUID) -> str:
         return await self._connection.fetchval(_GET_FOLDER_PATH_SQL, folder_id)
 
-    async def get_children(self, folder_id: UUID) -> list[EntryDto]:
+    async def get_children(self, folder_id: UUID) -> list[Folder | File]:
         rows = await self._connection.fetch(_GET_CHILDREN_SQL, folder_id)
         return [
-            EntryDto(id=row["id"], name=row["name"], type=row["type"]) for row in rows
+            Folder(id=row["id"], parent_id=folder_id, name=row["name"])
+            if row["type"] == "Folder"
+            else File(id=row["id"], parent_id=folder_id, name=row["name"])
+            for row in rows
         ]
 
     async def search_exact_in_folder(
         self, query: str, folder_id: UUID, limit: int
-    ) -> list[SearchResultDto]:
+    ) -> list[SearchMatch]:
         rows = await self._connection.fetch(
             _SEARCH_EXACT_CURRENT_SQL, folder_id, query, limit
         )
 
-        return [
-            SearchResultDto(
-                id=row["id"],
-                name=row["name"],
-                path=row["path"],
-                parent_id=row["parent_id"],
-            )
-            for row in rows
-        ]
+        return [self._to_search_match(row) for row in rows]
 
-    async def search_all_files(self, query: str, limit: int) -> list[SearchResultDto]:
+    async def search_all_files(self, query: str, limit: int) -> list[SearchMatch]:
         escaped = (
-            query.lower().replace("\\", "\\\\").replace("%", "\\%").replace("*", "\\*")
+            query.lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         )
 
         rows = await self._connection.fetch(_SEARCH_ALL_FILES_SQL, f"{escaped}%", limit)
 
-        return [
-            SearchResultDto(
-                id=row["id"],
-                name=row["name"],
-                path=row["path"],
-                parent_id=row["parent_id"],
-            )
-            for row in rows
-        ]
+        return [self._to_search_match(row) for row in rows]
+
+    @staticmethod
+    def _to_search_match(row: asyncpg.Record) -> SearchMatch:
+        return SearchMatch(
+            file=File(id=row["id"], name=row["name"], parent_id=row["parent_id"]),
+            path=row["path"],
+        )
 
 
 _GET_FOLDER_PATH_SQL = """
@@ -147,7 +141,10 @@ _SEARCH_COMMON_SQL = """
         GROUP BY file_id
     )
     SELECT match.id AS id, match.name AS name,
-           path.path || '/' || match.name AS path,
+           CASE WHEN length(path.path || '/' || match.name) <= 255
+                THEN path.path || '/' || match.name
+                ELSE '...' || right(path.path || '/' || match.name, 252)
+           END AS path,
            match.parent_id AS parent_id
     FROM matches match JOIN result_paths path ON path.file_id = match.id
     ORDER BY LOWER(match.name) COLLATE "C", match.name COLLATE "C", match.id

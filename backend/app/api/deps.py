@@ -4,9 +4,9 @@ from uuid import UUID
 from fastapi import Depends
 
 from app.db.db import get_pool
+from app.entities.exceptions import EntryNotFoundException
 from app.repositories.filesystem_repository import FileSystemRepository
 from app.repositories.protocols import FileSystemRepositoryProtocol
-from app.services.exceptions import EntryNotFoundException
 from app.services.filesystem_service import FileSystemService
 
 
@@ -17,7 +17,7 @@ async def get_repository() -> AsyncIterator[FileSystemRepositoryProtocol]:
 
 
 async def get_service(
-    repository: FileSystemRepository = Depends(get_repository),
+    repository: FileSystemRepositoryProtocol = Depends(get_repository),
 ) -> FileSystemService:
     return FileSystemService(repository)
 

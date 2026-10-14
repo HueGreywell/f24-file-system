@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Response
 
 from app.api.deps import get_service, parse_path_uuid
+from app.api.mappers import to_entry_dto, to_folder_contents_dto
 from app.schemas.entry import CreateEntryRequest, EntryDto, FolderContentsDto
 from app.services.filesystem_service import FileSystemService
 
@@ -13,7 +14,8 @@ async def create_entry(
     request: CreateEntryRequest,
     service: FileSystemService = Depends(get_service),
 ) -> EntryDto:
-    return await service.create(parse_path_uuid(id), request)
+    entry = await service.create(parse_path_uuid(id), request)
+    return to_entry_dto(entry)
 
 
 @router.delete("/{id}", status_code=204)
@@ -28,11 +30,13 @@ async def delete_folder(
 async def get_folder(
     id: str, service: FileSystemService = Depends(get_service)
 ) -> FolderContentsDto:
-    return await service.get_folder(parse_path_uuid(id))
+    contents = await service.get_folder(parse_path_uuid(id))
+    return to_folder_contents_dto(contents)
 
 
 @router.get("", response_model=FolderContentsDto)
 async def get_root_folder(
     service: FileSystemService = Depends(get_service),
 ) -> FolderContentsDto:
-    return await service.get_root()
+    contents = await service.get_root()
+    return to_folder_contents_dto(contents)
