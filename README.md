@@ -98,20 +98,3 @@ Any other IDE works the same way: point it at `backend/.venv` for Python
 debugging, and use its browser/JS debugger (or just browser DevTools, which
 work out of the box against the Vite dev server's source maps) for the
 frontend.
-
-## API
-
-- `GET /folders` / `GET /folders/{id}` — folder metadata, derived path, and
-  immediate children.
-- `POST /folders/{id}` — create a file or folder, returns `201`.
-- `DELETE /folders/{id}` — recursively delete a non-root folder.
-- `DELETE /files/{id}` — delete a file.
-- `GET /files/search?query=x` — prefix search across all files, top 10
-  matches. Add `&folderId=y` to instead require an exact (case-insensitive)
-  name match scoped to that one folder. The frontend's search box exposes
-  both: typing searches globally by prefix, and an "exact name, this folder
-  only" checkbox switches to the scoped exact-match lookup.
-
-Errors use `{ "code": "...", "message": "..." }`. Invalid requests return
-`400`, missing resources `404`, name conflicts `409`, and unexpected
-failures `500`.
