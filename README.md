@@ -1,8 +1,8 @@
 # F24 Browser-Based File System
 
 A small browser-based file system with folders, name-only files, recursive
-deletion, global filename-prefix search, and exact-name search in the
-current folder. React frontend, FastAPI backend, PostgreSQL database.
+deletion, global filename-prefix search, and filename-prefix search scoped
+to the current folder. React frontend, FastAPI backend, PostgreSQL database.
 
 ## Run everything with Docker
 
@@ -34,13 +34,20 @@ To also remove the database volume:
 docker compose down -v
 ```
 
-## Run locally (without Docker)
+## Run locally (backend/frontend without Docker)
+
+Tool versions used, not pinned anywhere else in the repo (library versions
+are in `backend/pyproject.toml` and `frontend/package.json`/`package-lock.json`):
+
+- Python 3.12
+- Node 22
+- npm 11
 
 ### Database
 
-```bash
-docker compose up -d postgres
-```
+Install PostgreSQL yourself instead and
+point `backend/.env` at it (`POSTGRES_HOST`/`POSTGRES_PORT`/`POSTGRES_DB`/
+`POSTGRES_USER`/`POSTGRES_PASSWORD`).
 
 ### Backend
 
@@ -62,12 +69,9 @@ cp .env.example .env
 npm run dev
 ```
 
-Open http://localhost:5173.
-
 ## Tests
 
-Unit tests (service layer, name validation, API routing/error-mapping) run
-against an in-memory fake repository and need no database:
+Unit tests (service layer, name validation, API routing/error-mapping)
 
 ```bash
 cd backend
