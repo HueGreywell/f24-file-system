@@ -101,11 +101,11 @@ async def test_search_across_all_files(client, root):
     assert {r["name"] for r in response.json()} == {"report.txt", "resume.pdf"}
 
 
-async def test_search_exact_in_folder(client, root):
+async def test_search_prefix_in_folder(client, root):
     await client.post(f"/folders/{root.id}/children", json={"name": "report.txt", "type": "File"})
 
     response = await client.get(
-        "/files/search", params={"query": "report.txt", "folderId": str(root.id)}
+        "/files/search", params={"query": "report", "folderId": str(root.id)}
     )
 
     assert response.status_code == 200

@@ -45,7 +45,7 @@ export function SearchBox({ currentFolderId, onSelect }: SearchBoxProps) {
           value={query}
           onChange={(e) => handleQueryChange(e.target.value)}
           placeholder={
-            scope === 'folder' ? 'Exact name in this folder…' : 'Starts with, searches everywhere…'
+            scope === 'folder' ? 'Starts with, this folder only…' : 'Starts with, searches everywhere…'
           }
         />
         <div className="search-scope" role="radiogroup" aria-label="Search scope">

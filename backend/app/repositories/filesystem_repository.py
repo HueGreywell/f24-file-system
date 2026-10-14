@@ -78,23 +78,26 @@ class FileSystemRepository(FileSystemRepositoryProtocol):
             for row in rows
         ]
 
-    async def search_exact_in_folder(
+    async def search_prefix_in_folder(
         self, query: str, folder_id: UUID, limit: int
     ) -> list[SearchMatch]:
         rows = await self._connection.fetch(
-            _SEARCH_EXACT_CURRENT_SQL, folder_id, query, limit
+            _SEARCH_PREFIX_IN_FOLDER_SQL, folder_id, self._like_prefix(query), limit
         )
 
         return [self._to_search_match(row) for row in rows]
 
     async def search_all_files(self, query: str, limit: int) -> list[SearchMatch]:
-        escaped = (
-            query.lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        rows = await self._connection.fetch(
+            _SEARCH_ALL_FILES_SQL, self._like_prefix(query), limit
         )
 
-        rows = await self._connection.fetch(_SEARCH_ALL_FILES_SQL, f"{escaped}%", limit)
-
         return [self._to_search_match(row) for row in rows]
+
+    @staticmethod
+    def _like_prefix(query: str) -> str:
+        escaped = (query.lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_"))
+        return f"{escaped}%"
 
     @staticmethod
     def _to_search_match(row: asyncpg.Record) -> SearchMatch:
@@ -161,11 +164,11 @@ _SEARCH_ALL_FILES_SQL = f"""
     {_SEARCH_COMMON_SQL}
 """
 
-_SEARCH_EXACT_CURRENT_SQL = f"""
+_SEARCH_PREFIX_IN_FOLDER_SQL = f"""
     WITH RECURSIVE matches AS MATERIALIZED (
         SELECT id, name, parent_id
         FROM files
-        WHERE parent_id = $1 AND LOWER(name) = LOWER($2)
+        WHERE parent_id = $1 AND LOWER(name) COLLATE "C" LIKE $2 ESCAPE '\\'
         ORDER BY LOWER(name) COLLATE "C", name COLLATE "C", id
         LIMIT $3
     ),

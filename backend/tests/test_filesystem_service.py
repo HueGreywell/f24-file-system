@@ -122,11 +122,11 @@ async def test_search_without_folder_id_matches_prefix_across_all_files(service,
     assert {r.file.name for r in results} == {"report.txt", "resume.pdf"}
 
 
-async def test_search_with_folder_id_matches_exact_name_only(service, root):
+async def test_search_with_folder_id_matches_prefix_within_that_folder(service, root):
     await service.create(root.id, "report.txt", EntryType.FILE)
 
-    assert await service.search("report", root.id) == []
-    results = await service.search("report.txt", root.id)
+    assert await service.search("resume", root.id) == []
+    results = await service.search("report", root.id)
     assert [r.file.name for r in results] == ["report.txt"]
 
 

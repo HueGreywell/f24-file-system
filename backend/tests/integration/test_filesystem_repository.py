@@ -115,16 +115,16 @@ async def test_search_all_files_treats_underscore_as_literal(repository):
     assert [r.file.name for r in results] == ["my_file.txt"]
 
 
-async def test_search_exact_in_folder_requires_full_name_match(repository, tree):
-    assert await repository.search_exact_in_folder("resume", tree.documents_id, 10) == []
+async def test_search_prefix_in_folder_matches_case_insensitively(repository, tree):
+    assert await repository.search_prefix_in_folder("vacation", tree.documents_id, 10) == []
 
-    results = await repository.search_exact_in_folder("resume.pdf", tree.documents_id, 10)
+    results = await repository.search_prefix_in_folder("resume", tree.documents_id, 10)
     assert [r.file.name for r in results] == ["Resume.pdf"]
 
 
-async def test_search_exact_in_folder_is_scoped_to_that_folder(repository, tree):
-    results = await repository.search_exact_in_folder(
-        "coverletter.docx", tree.projects_id, 10
+async def test_search_prefix_in_folder_is_scoped_to_that_folder(repository, tree):
+    results = await repository.search_prefix_in_folder(
+        "coverletter", tree.projects_id, 10
     )
     assert results == []
 
@@ -145,7 +145,7 @@ async def test_search_result_path_is_truncated_like_folder_path(repository):
     )
 
     folder_path = await repository.get_folder_path(deep_folder_id)
-    results = await repository.search_exact_in_folder("f.txt", deep_folder_id, 10)
+    results = await repository.search_prefix_in_folder("f.txt", deep_folder_id, 10)
 
     assert len(folder_path) == 255
     assert folder_path.startswith("...")

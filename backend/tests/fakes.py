@@ -88,13 +88,14 @@ class FakeRepository:
         path = await self.get_folder_path(file.parent_id)
         return SearchMatch(file=file, path=f"{path}/{file.name}")
 
-    async def search_exact_in_folder(
+    async def search_prefix_in_folder(
         self, query: str, folder_id: UUID, limit: int
     ) -> list[SearchMatch]:
+        lowered = query.lower()
         matches = [
             f
             for f in self.files.values()
-            if f.parent_id == folder_id and f.name.lower() == query.lower()
+            if f.parent_id == folder_id and f.name.lower().startswith(lowered)
         ]
         matches.sort(key=lambda f: f.name.lower())
         return [await self._to_search_match(f) for f in matches[:limit]]

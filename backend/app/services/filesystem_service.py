@@ -68,7 +68,7 @@ class FileSystemService:
         if folder_id is not None:
             if await self._repository.get_folder(folder_id) is None:
                 raise EntryNotFoundException("Folder not found.")
-            return await self._repository.search_exact_in_folder(
+            return await self._repository.search_prefix_in_folder(
                 query, folder_id, SEARCH_RESULT_LIMIT
             )
 

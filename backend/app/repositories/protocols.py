@@ -24,7 +24,7 @@ class FileSystemRepositoryProtocol(Protocol):
 
     async def get_children(self, folder_id: UUID) -> list[Folder | File]: ...
 
-    async def search_exact_in_folder(
+    async def search_prefix_in_folder(
         self, query: str, folder_id: UUID, limit: int
     ) -> list[SearchMatch]: ...
 
