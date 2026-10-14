@@ -48,7 +48,7 @@ docker compose up -d postgres
 cd backend
 python3 -m venv .venv
 .venv/bin/pip install -e ".[dev]"
-cp .env.example .env   # update POSTGRES_PORT to 5433 to match the compose mapping above
+cp .env.example .env
 .venv/bin/python -m app.db.migrate
 .venv/bin/uvicorn app.main:app --reload --port 8000
 ```
