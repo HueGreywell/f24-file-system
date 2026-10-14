@@ -13,6 +13,12 @@ docker compose up --build
 This starts PostgreSQL, applies the database migrations, then starts the
 API and the frontend.
 
+Note: `backend/migrations/0003_seed_data.sql` is demo seed data (a few
+sample folders/files), not a schema change — it runs like any other
+migration so the app has something to browse out of the box. To start with
+an empty filesystem instead, delete that file before running migrations
+for the first time.
+
 - Frontend: http://localhost:3000
 - Backend API: http://localhost:8000
 
