@@ -7,7 +7,6 @@ from app.entities.folder import Folder
 from app.entities.folder_contents import FolderContents
 from app.entities.search_match import SearchMatch
 from app.repositories.protocols import FileSystemRepositoryProtocol
-from app.schemas.entry import CreateEntryRequest
 from app.services import name_validator
 
 SEARCH_RESULT_LIMIT = 10
@@ -17,13 +16,13 @@ class FileSystemService:
     def __init__(self, repository: FileSystemRepositoryProtocol) -> None:
         self._repository = repository
 
-    async def create(self, parent_id: UUID, request: CreateEntryRequest) -> Folder | File:
-        name = name_validator.normalize(request.name)
+    async def create(self, parent_id: UUID, name: str, entry_type: EntryType) -> Folder | File:
+        name = name_validator.normalize(name)
 
         if await self._repository.get_folder(parent_id) is None:
             raise EntryNotFoundException("Parent folder not found.")
 
-        if request.type == EntryType.FOLDER:
+        if entry_type == EntryType.FOLDER:
             folder = Folder(id=uuid4(), parent_id=parent_id, name=name)
             await self._repository.add_folder(folder)
             return folder

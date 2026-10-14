@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from uuid import UUID, uuid4
 
 import pytest
@@ -6,10 +7,40 @@ from app.entities.exceptions import DuplicateNameException, EntryNotFoundExcepti
 from app.entities.file import File
 from app.entities.folder import Folder
 
-# Fixed ids seeded by backend/migrations/0003_seed_data.sql.
 ROOT_ID = UUID("00000000-0000-0000-0000-000000000000")
-DOCUMENTS_ID = UUID("32d73ba3-84d0-4ff2-ae07-6d12f200b792")
-PROJECTS_ID = UUID("b8fad0ed-54a6-474d-a51b-0ed702dfe4b9")
+
+
+@dataclass
+class Tree:
+    documents_name: str
+    documents_id: UUID
+    projects_id: UUID
+    resume_id: UUID
+    cover_letter_id: UUID
+
+
+@pytest.fixture
+async def tree(repository) -> Tree:
+    documents_name = f"Documents-{uuid4().hex[:8]}"
+    documents_id = uuid4()
+    projects_id = uuid4()
+    resume_id = uuid4()
+    cover_letter_id = uuid4()
+
+    await repository.add_folder(Folder(id=documents_id, parent_id=ROOT_ID, name=documents_name))
+    await repository.add_folder(Folder(id=projects_id, parent_id=documents_id, name="Projects"))
+    await repository.add_file(File(id=resume_id, parent_id=documents_id, name="Resume.pdf"))
+    await repository.add_file(
+        File(id=cover_letter_id, parent_id=documents_id, name="CoverLetter.docx")
+    )
+
+    return Tree(
+        documents_name=documents_name,
+        documents_id=documents_id,
+        projects_id=projects_id,
+        resume_id=resume_id,
+        cover_letter_id=cover_letter_id,
+    )
 
 
 async def test_add_file_duplicate_name_in_same_folder_raises(repository):
@@ -49,14 +80,19 @@ async def test_cascade_delete_removes_children(repository, connection):
     assert row is None
 
 
-async def test_get_folder_path_builds_full_path(repository):
-    assert await repository.get_folder_path(PROJECTS_ID) == "home/Documents/Projects"
+async def test_get_folder_path_builds_full_path(repository, tree):
+    expected = f"home/{tree.documents_name}/Projects"
+    assert await repository.get_folder_path(tree.projects_id) == expected
 
 
 async def test_search_all_files_matches_prefix_case_insensitively(repository):
-    results = await repository.search_all_files("re", 10)
+    unique_prefix = uuid4().hex
+    name = f"{unique_prefix.upper()}-report.txt"
+    await repository.add_file(File(id=uuid4(), parent_id=ROOT_ID, name=name))
 
-    assert [r.file.name for r in results] == ["Resume.pdf"]
+    results = await repository.search_all_files(unique_prefix.lower(), 10)
+
+    assert [r.file.name for r in results] == [name]
 
 
 async def test_search_all_files_respects_limit(repository):
@@ -79,17 +115,16 @@ async def test_search_all_files_treats_underscore_as_literal(repository):
     assert [r.file.name for r in results] == ["my_file.txt"]
 
 
-async def test_search_exact_in_folder_requires_full_name_match(repository):
-    assert await repository.search_exact_in_folder("resume", DOCUMENTS_ID, 10) == []
+async def test_search_exact_in_folder_requires_full_name_match(repository, tree):
+    assert await repository.search_exact_in_folder("resume", tree.documents_id, 10) == []
 
-    results = await repository.search_exact_in_folder("resume.pdf", DOCUMENTS_ID, 10)
+    results = await repository.search_exact_in_folder("resume.pdf", tree.documents_id, 10)
     assert [r.file.name for r in results] == ["Resume.pdf"]
 
 
-async def test_search_exact_in_folder_is_scoped_to_that_folder(repository):
-    # CoverLetter.docx lives in Documents, not in its Projects subfolder.
+async def test_search_exact_in_folder_is_scoped_to_that_folder(repository, tree):
     results = await repository.search_exact_in_folder(
-        "coverletter.docx", PROJECTS_ID, 10
+        "coverletter.docx", tree.projects_id, 10
     )
     assert results == []
 

@@ -8,13 +8,13 @@ from app.services.filesystem_service import FileSystemService
 router = APIRouter(prefix="/folders", tags=["Folders"])
 
 
-@router.post("/{id}", response_model=EntryDto, status_code=201)
+@router.post("/{id}/children", response_model=EntryDto, status_code=201)
 async def create_entry(
     id: str,
     request: CreateEntryRequest,
     service: FileSystemService = Depends(get_service),
 ) -> EntryDto:
-    entry = await service.create(parse_path_uuid(id), request)
+    entry = await service.create(parse_path_uuid(id), request.name, request.type)
     return to_entry_dto(entry)
 
 

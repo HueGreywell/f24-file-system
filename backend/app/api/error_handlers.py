@@ -4,19 +4,44 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from app.entities.exceptions import DomainException
+from app.entities.exceptions import (
+    CannotDeleteRootException,
+    DomainException,
+    DuplicateNameException,
+    EntryNotFoundException,
+    InvalidNameException,
+)
 from app.schemas.error import ErrorDto
 
 logger = logging.getLogger(__name__)
 
 
 def register_exception_handlers(app: FastAPI) -> None:
-    @app.exception_handler(DomainException)
-    async def domain_exception_handler(
-        _: Request, exc: DomainException
-    ) -> JSONResponse:
+    def respond(exc: DomainException, status_code: int) -> JSONResponse:
         error = ErrorDto(code=exc.code, message=exc.message)
-        return JSONResponse(status_code=exc.status_code, content=error.model_dump())
+        return JSONResponse(status_code=status_code, content=error.model_dump())
+
+    @app.exception_handler(InvalidNameException)
+    async def invalid_name_handler(_: Request, exc: InvalidNameException) -> JSONResponse:
+        return respond(exc, 400)
+
+    @app.exception_handler(EntryNotFoundException)
+    async def entry_not_found_handler(_: Request, exc: EntryNotFoundException) -> JSONResponse:
+        return respond(exc, 404)
+
+    @app.exception_handler(CannotDeleteRootException)
+    async def cannot_delete_root_handler(
+        _: Request, exc: CannotDeleteRootException
+    ) -> JSONResponse:
+        return respond(exc, 400)
+
+    @app.exception_handler(DuplicateNameException)
+    async def duplicate_name_handler(_: Request, exc: DuplicateNameException) -> JSONResponse:
+        return respond(exc, 409)
+
+    @app.exception_handler(DomainException)
+    async def domain_exception_handler(_: Request, exc: DomainException) -> JSONResponse:
+        return respond(exc, 400)
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(

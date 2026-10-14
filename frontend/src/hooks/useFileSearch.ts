@@ -18,11 +18,16 @@ export function useFileSearch(query: string, folderId?: string): FileSearchState
   useEffect(() => {
     if (!debouncedQuery) return
 
-    searchFiles(debouncedQuery, folderId)
+    const controller = new AbortController()
+
+    searchFiles(debouncedQuery, folderId, controller.signal)
       .then(setResults)
       .catch((err: unknown) => {
+        if (controller.signal.aborted) return
         toast.error(getErrorMessage(err))
       })
+
+    return () => controller.abort()
   }, [debouncedQuery, folderId, toast])
 
   return debouncedQuery ? { results, searched: true } : { results: [], searched: false }

@@ -44,29 +44,29 @@ async def test_get_root(client, root):
 
 
 async def test_create_folder_returns_201(client, root):
-    response = await client.post(f"/folders/{root.id}", json={"name": "Docs", "type": "Folder"})
+    response = await client.post(f"/folders/{root.id}/children", json={"name": "Docs", "type": "Folder"})
 
     assert response.status_code == 201
     assert response.json()["name"] == "Docs"
 
 
 async def test_create_with_blank_name_returns_400(client, root):
-    response = await client.post(f"/folders/{root.id}", json={"name": "  ", "type": "File"})
+    response = await client.post(f"/folders/{root.id}/children", json={"name": "  ", "type": "File"})
 
     assert response.status_code == 400
     assert response.json()["code"] == "INVALID_NAME"
 
 
 async def test_create_in_missing_parent_returns_404(client):
-    response = await client.post(f"/folders/{uuid4()}", json={"name": "x", "type": "File"})
+    response = await client.post(f"/folders/{uuid4()}/children", json={"name": "x", "type": "File"})
 
     assert response.status_code == 404
     assert response.json()["code"] == "NOT_FOUND"
 
 
 async def test_create_duplicate_returns_409(client, root):
-    await client.post(f"/folders/{root.id}", json={"name": "Docs", "type": "Folder"})
-    response = await client.post(f"/folders/{root.id}", json={"name": "Docs", "type": "Folder"})
+    await client.post(f"/folders/{root.id}/children", json={"name": "Docs", "type": "Folder"})
+    response = await client.post(f"/folders/{root.id}/children", json={"name": "Docs", "type": "Folder"})
 
     assert response.status_code == 409
     assert response.json()["code"] == "DUPLICATE_NAME"
@@ -92,8 +92,8 @@ async def test_invalid_id_returns_404(client):
 
 
 async def test_search_across_all_files(client, root):
-    await client.post(f"/folders/{root.id}", json={"name": "report.txt", "type": "File"})
-    await client.post(f"/folders/{root.id}", json={"name": "resume.pdf", "type": "File"})
+    await client.post(f"/folders/{root.id}/children", json={"name": "report.txt", "type": "File"})
+    await client.post(f"/folders/{root.id}/children", json={"name": "resume.pdf", "type": "File"})
 
     response = await client.get("/files/search", params={"query": "re"})
 
@@ -102,7 +102,7 @@ async def test_search_across_all_files(client, root):
 
 
 async def test_search_exact_in_folder(client, root):
-    await client.post(f"/folders/{root.id}", json={"name": "report.txt", "type": "File"})
+    await client.post(f"/folders/{root.id}/children", json={"name": "report.txt", "type": "File"})
 
     response = await client.get(
         "/files/search", params={"query": "report.txt", "folderId": str(root.id)}

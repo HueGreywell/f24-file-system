@@ -10,7 +10,6 @@ from app.entities.exceptions import (
 )
 from app.entities.file import File
 from app.entities.folder import Folder
-from app.schemas.entry import CreateEntryRequest
 from app.services.filesystem_service import FileSystemService
 from tests.fakes import FakeRepository
 
@@ -33,16 +32,14 @@ def service(repository):
 
 
 async def test_create_folder(service, root):
-    entry = await service.create(root.id, CreateEntryRequest(name="Docs", type=EntryType.FOLDER))
+    entry = await service.create(root.id, "Docs", EntryType.FOLDER)
 
     assert isinstance(entry, Folder)
     assert entry.name == "Docs"
 
 
 async def test_create_file(service, root):
-    entry = await service.create(
-        root.id, CreateEntryRequest(name="report.txt", type=EntryType.FILE)
-    )
+    entry = await service.create(root.id, "report.txt", EntryType.FILE)
 
     assert isinstance(entry, File)
     assert entry.name == "report.txt"
@@ -50,20 +47,18 @@ async def test_create_file(service, root):
 
 async def test_create_in_missing_parent_raises_not_found(service):
     with pytest.raises(EntryNotFoundException):
-        await service.create(uuid4(), CreateEntryRequest(name="x", type=EntryType.FILE))
+        await service.create(uuid4(), "x", EntryType.FILE)
 
 
 async def test_create_duplicate_name_propagates(service, root):
-    await service.create(root.id, CreateEntryRequest(name="Docs", type=EntryType.FOLDER))
+    await service.create(root.id, "Docs", EntryType.FOLDER)
 
     with pytest.raises(DuplicateNameException):
-        await service.create(root.id, CreateEntryRequest(name="docs", type=EntryType.FOLDER))
+        await service.create(root.id, "docs", EntryType.FOLDER)
 
 
 async def test_delete_file(service, repository, root):
-    entry = await service.create(
-        root.id, CreateEntryRequest(name="report.txt", type=EntryType.FILE)
-    )
+    entry = await service.create(root.id, "report.txt", EntryType.FILE)
 
     await service.delete_file(entry.id)
 
@@ -86,7 +81,7 @@ async def test_delete_missing_folder_raises_not_found(service):
 
 
 async def test_delete_folder_removes_it(service, repository, root):
-    entry = await service.create(root.id, CreateEntryRequest(name="Docs", type=EntryType.FOLDER))
+    entry = await service.create(root.id, "Docs", EntryType.FOLDER)
 
     await service.delete_folder(entry.id)
 
@@ -99,8 +94,8 @@ async def test_get_folder_not_found(service):
 
 
 async def test_get_folder_returns_children_and_path(service, root):
-    await service.create(root.id, CreateEntryRequest(name="Docs", type=EntryType.FOLDER))
-    await service.create(root.id, CreateEntryRequest(name="notes.txt", type=EntryType.FILE))
+    await service.create(root.id, "Docs", EntryType.FOLDER)
+    await service.create(root.id, "notes.txt", EntryType.FILE)
 
     contents = await service.get_folder(root.id)
 
@@ -119,8 +114,8 @@ async def test_search_blank_query_returns_empty(service, root):
 
 
 async def test_search_without_folder_id_matches_prefix_across_all_files(service, root):
-    await service.create(root.id, CreateEntryRequest(name="report.txt", type=EntryType.FILE))
-    await service.create(root.id, CreateEntryRequest(name="resume.pdf", type=EntryType.FILE))
+    await service.create(root.id, "report.txt", EntryType.FILE)
+    await service.create(root.id, "resume.pdf", EntryType.FILE)
 
     results = await service.search("re", None)
 
@@ -128,7 +123,7 @@ async def test_search_without_folder_id_matches_prefix_across_all_files(service,
 
 
 async def test_search_with_folder_id_matches_exact_name_only(service, root):
-    await service.create(root.id, CreateEntryRequest(name="report.txt", type=EntryType.FILE))
+    await service.create(root.id, "report.txt", EntryType.FILE)
 
     assert await service.search("report", root.id) == []
     results = await service.search("report.txt", root.id)

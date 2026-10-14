@@ -42,7 +42,14 @@ export function EntryList({ entries, onOpen, onDeleted }: EntryListProps) {
         <li
           key={entry.id}
           className={entry.type === EntryType.Folder ? 'folder' : ''}
+          tabIndex={0}
           onClick={() => onOpen(entry)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              onOpen(entry)
+            }
+          }}
         >
           <span className="name">
             {entry.type === EntryType.Folder ? <FolderIcon /> : <FileIcon />}

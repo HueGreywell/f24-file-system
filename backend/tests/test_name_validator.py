@@ -8,7 +8,7 @@ def test_normalize_trims_whitespace():
     assert name_validator.normalize("  report.txt  ") == "report.txt"
 
 
-@pytest.mark.parametrize("value", [None, "", "   "])
+@pytest.mark.parametrize("value", ["", "   "])
 def test_normalize_rejects_empty(value):
     with pytest.raises(InvalidNameException):
         name_validator.normalize(value)
@@ -16,6 +16,18 @@ def test_normalize_rejects_empty(value):
 
 @pytest.mark.parametrize("value", ["a/b", "a\\b"])
 def test_normalize_rejects_path_separators(value):
+    with pytest.raises(InvalidNameException):
+        name_validator.normalize(value)
+
+
+@pytest.mark.parametrize("value", [".", ".."])
+def test_normalize_rejects_dot_names(value):
+    with pytest.raises(InvalidNameException):
+        name_validator.normalize(value)
+
+
+@pytest.mark.parametrize("value", ["a\nb", "a\tb", "a\x00b", "a\x7fb"])
+def test_normalize_rejects_control_characters(value):
     with pytest.raises(InvalidNameException):
         name_validator.normalize(value)
 

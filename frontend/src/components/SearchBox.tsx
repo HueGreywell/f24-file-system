@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import type { FocusEvent, KeyboardEvent } from 'react'
 import { useFileSearch } from '../hooks/useFileSearch'
 import { FileIcon } from './icons'
 import type { SearchResult } from '../types/entry'
@@ -11,20 +12,38 @@ interface SearchBoxProps {
 export function SearchBox({ currentFolderId, onSelect }: SearchBoxProps) {
   const [query, setQuery] = useState('')
   const [scope, setScope] = useState<'global' | 'folder'>('global')
+  const [closed, setClosed] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
   const folderId = scope === 'folder' ? currentFolderId : undefined
   const { results, searched } = useFileSearch(query, folderId)
+  const isOpen = searched && !closed
+
+  function handleQueryChange(value: string) {
+    setQuery(value)
+    setClosed(false)
+  }
 
   function handleSelect(result: SearchResult) {
     setQuery('')
     onSelect(result)
   }
 
+  function handleKeyDown(e: KeyboardEvent<HTMLElement>) {
+    if (e.key === 'Escape') setClosed(true)
+  }
+
+  function handleBlur(e: FocusEvent<HTMLDivElement>) {
+    const nextFocus = e.relatedTarget as Node | null
+    if (nextFocus && containerRef.current?.contains(nextFocus)) return
+    setClosed(true)
+  }
+
   return (
-    <div className="search">
+    <div className="search" ref={containerRef} onKeyDown={handleKeyDown} onBlur={handleBlur}>
       <div className="search-controls">
         <input
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => handleQueryChange(e.target.value)}
           placeholder={
             scope === 'folder' ? 'Exact name in this folder…' : 'Starts with, searches everywhere…'
           }
@@ -51,11 +70,23 @@ export function SearchBox({ currentFolderId, onSelect }: SearchBoxProps) {
           </button>
         </div>
       </div>
-      {searched && (
-        <ul className="search-results">
+      {isOpen && (
+        <ul className="search-results" role="listbox">
           {results.length > 0 ? (
             results.map((result) => (
-              <li key={result.id} onClick={() => handleSelect(result)}>
+              <li
+                key={result.id}
+                role="option"
+                aria-selected={false}
+                tabIndex={0}
+                onClick={() => handleSelect(result)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    handleSelect(result)
+                  }
+                }}
+              >
                 <span className="name">
                   <FileIcon />
                   {result.name}

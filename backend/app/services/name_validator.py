@@ -3,10 +3,7 @@ from app.entities.exceptions import InvalidNameException
 MAX_LENGTH = 255
 
 
-def normalize(name: str | None) -> str:
-    if name is None:
-        raise InvalidNameException("Name is required.")
-
+def normalize(name: str) -> str:
     normalized = name.strip()
     if len(normalized) == 0:
         raise InvalidNameException("Name must not be empty.")
@@ -14,5 +11,9 @@ def normalize(name: str | None) -> str:
         raise InvalidNameException(f"Name must be at most {MAX_LENGTH} characters.")
     if "/" in normalized or "\\" in normalized:
         raise InvalidNameException("Name must not contain '/' or '\\'.")
+    if normalized in (".", ".."):
+        raise InvalidNameException("Name must not be '.' or '..'.")
+    if any(ord(char) < 0x20 or ord(char) == 0x7F for char in normalized):
+        raise InvalidNameException("Name must not contain control characters.")
 
     return normalized
